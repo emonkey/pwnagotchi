@@ -1,8 +1,8 @@
 packer {
   required_plugins {
     ansible = {
-      version = "~> 1"
       source = "github.com/hashicorp/ansible"
+      version = ">= 1.1.1"
     }
   }
 }
@@ -30,6 +30,7 @@ source "arm-image" "pwnagotchi" {
 }
 
 build {
+  name = "RPi02W64 Pwnagotchi"
   sources = [
     "source.arm-image.pwnagotchi"
   ]
@@ -44,7 +45,7 @@ build {
   provisioner "shell" {
     inline = [
       "dpkg-architecture",
-      "apt-get -y update && apt-get -y upgrade",
+      "apt-get -y --allow-releaseinfo-change update && apt-get -y dist-upgrade",
       "apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev git"
     ]
   }
@@ -63,7 +64,7 @@ build {
 
   provisioner "shell" {
     inline = [
-      "pip3 install --no-cache-dir ansible meson wheel"
+      "pip3 install --no-cache-dir ansible meson"
     ]
   }
 
@@ -95,9 +96,16 @@ build {
   }
 
   provisioner "shell" {
-    inline = [
-      "chmod +x /usr/bin/*"
-    ]
+    inline = ["chmod +x /usr/bin/*"]
+  }
+
+  provisioner "file" {
+    source      = "data/etc/update-motd.d/01-motd"
+    destination = "/etc/update-motd.d/01-motd"
+  }
+
+  provisioner "shell" {
+    inline = ["chmod +x /etc/update-motd.d/*"]
   }
 
   provisioner "ansible-local" {

@@ -14,6 +14,7 @@ blink_led 10 &
 
 if is_auto_mode; then
   /usr/local/bin/pwnagotchi
+  systemctl restart bettercap
 else
   /usr/local/bin/pwnagotchi --manual
 fi
