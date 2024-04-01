@@ -1,7 +1,7 @@
 ---
 - hosts:
     - 127.0.0.1
-  become: yes
+  become: true
   vars:
     pwnagotchi:
       hostname: "{{ lookup('env', 'PWN_HOSTNAME') | default('pwnagotchi', true) }}"
@@ -36,7 +36,7 @@
         - dnsmasq.service
     packages:
       bettercap:
-        url: "https://github.com/bettercap/bettercap/releases/download/v2.31.0/bettercap_linux_armhf_v2.31.0.zip"
+        url: "https://github.com/bettercap/bettercap/releases/download/v2.31.1/bettercap_linux_armhf_v2.31.1.zip"
         ui: "https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip"
       pwngrid:
         url: "https://github.com/evilsocket/pwngrid/releases/download/v1.10.3/pwngrid_linux_armhf_v1.10.3.zip"
@@ -64,8 +64,8 @@
           - python3-mpi4py
           - python3-smbus
           - unzip
+          - usrmerge
           - gawk
-          - lsof
           - libopenmpi-dev
           - libatlas-base-dev
           - libjasper-dev
@@ -74,19 +74,18 @@
           - libopenjp2-7
           - libtiff5
           - tcpdump
-          - dphys-swapfile
+          - lsof
+          - libimath-dev
+          - libopenexr-dev
+          - libgstreamer1.0-0
           - libavcodec-dev
           - libavformat-dev
-          - libfuse-dev
-          - libglib2.0-dev
-          - libgstreamer1.0-0
-          - libimath-dev
-          - libnetfilter-queue-dev
-          - libopenexr-dev
-          - libopenmpi3
-          - libpcap-dev
           - libswscale5
+          - libpcap-dev
           - libusb-1.0-0-dev
+          - libnetfilter-queue-dev
+          - libopenmpi3
+          - dphys-swapfile
           - kalipi-kernel
           - kalipi-bootloader
           - kalipi-re4son-firmware
@@ -98,12 +97,13 @@
           - fonts-dejavu
           - fonts-dejavu-core
           - fonts-dejavu-extra
-          - fonts-freefont-ttf
-          - fonts-ipaexfont-gothic
           - python3-pil
           - python3-smbus
+          - libfuse-dev
           - bc
+          - fonts-freefont-ttf
           - fbi
+          - fonts-ipaexfont-gothic
           - cryptsetup
           - dnsmasq
 
@@ -131,7 +131,8 @@
 
   - name: Add re4son-kernel repo key
     apt_key:
-      url: https://re4son-kernel.com/keys/http/archive-key.asc
+      keyserver: keyserver.ubuntu.com
+      id: 11764EE8AC24832F
       state: present
 
   - name: Add re4son-kernel repository
@@ -155,6 +156,28 @@
       selection: hold
     with_items: "{{ packages.apt.hold }}"
 
+  - name: Add jammy repo key
+    apt_key:
+      keyserver: keyserver.ubuntu.com
+      id: 871920D1991BC93C
+      state: present
+
+  - name: Add jammy archive repository
+    apt_repository:
+      repo: deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ jammy main universe
+      state: present
+
+  - name: Add xenial repo key
+    apt_key:
+      keyserver: keyserver.ubuntu.com
+      id: 3B4FE6ACC0B21F32
+      state: present
+
+  - name: Add xenial arm64 ports repository
+    apt_repository:
+      repo: deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports xenial main universe
+      state: present
+
   - name: update apt package cache
     apt:
       update_cache: yes
@@ -167,17 +190,25 @@
 
   - name: upgrade apt distro
     apt:
-      upgrade: dist
+      upgrade: full
+
+  - name: install usrmerge dependency
+    apt:
+      deb: https://snapshot.debian.org/archive/debian/20160413T160058Z/pool/main/libp/libpng/libpng12-0_1.2.54-6_arm64.deb
 
   - name: install packages
     apt:
       name: "{{ packages.apt.install }}"
+      autoclean: true
+      autoremove: true
       state: present
 
   - name: configure dphys-swapfile
-    file:
-      path: /etc/dphys-swapfile
-      content: "CONF_SWAPSIZE=1024"
+    lineinfile:
+      dest: /etc/dphys-swapfile
+      state: absent
+      insertafter: EOF
+      line: "CONF_SWAPSIZE=4096"
 
   - name: clone papirus repository
     git:
@@ -223,11 +254,53 @@
     command: "python3 -c 'import sys;print(sys.path.pop())'"
     register: pip_target
 
+  - name: create /usr/local/src/pwnagotchi/ folder
+    file:
+      path: /usr/local/src/pwnagotchi/
+      state: directory
+
   - name: clone pwnagotchi repository
     git:
       repo: https://github.com/emonkey/pwnagotchi.git
       dest: /usr/local/src/pwnagotchi
+      version: update-python-libs
+      single_branch: yes
     register: pwnagotchigit
+
+  - name: replace pwnagotchi requirements
+    copy:
+      dest: /usr/local/src/pwnagotchi/requirements.txt
+      content: |
+        file-read-backwards==3.0.0
+        flask-cors==4.0.0
+        flask-wtf==1.2.1
+        flask==3.0.2
+        gast==0.5.4
+        inky[rpi]==1.5.0
+        matplotlib==3.8.3
+        numpy==1.26.4
+        Pillow==10.2.0
+        pycryptodome==3.20.0
+        python-dateutil==2.9.0
+        PyYAML==6.0.1
+        requests==2.31.0
+        scapy==2.5.0
+        scipy==1.12.0
+        smbus2==0.4.3
+        spidev==3.6
+        stable-baselines3==2.3.0
+        tensorflow-estimator==2.15.0
+        tensorflow==2.16.1
+        toml==0.10.2
+        tweepy==4.14.0
+        websockets==12.0
+    when: (pwnagotchigit.changed) or (pip_packages['pwnagotchi'] is undefined) or (pip_packages['pwnagotchi'] != pwnagotchi_version)
+
+  - name: replace stable_baselines imports
+    replace:
+      path: /usr/local/share/pwnagotchi/pwnagotchi/ai/__init__.py
+      regexp: 'from stable_baselines'
+      replace: 'from stable_baselines3'
 
   - name: create /usr/local/share/pwnagotchi/ folder
     file:
@@ -268,7 +341,7 @@
   - name: install pwnagotchi wheel and dependencies
     pip:
       name: "{{ lookup('fileglob', '/usr/local/src/pwnagotchi/dist/pwnagotchi*.whl') }}"
-      extra_args: "--no-cache-dir"
+      extra_args: "--no-cache-dir --break-system-packages"
     when: (pwnagotchigit.changed) or (pip_packages['pwnagotchi'] is undefined) or (pip_packages['pwnagotchi'] != pwnagotchi_version)
 
   - name: download and install pwngrid
@@ -403,9 +476,14 @@
         You learn more about me at https://pwnagotchi.ai/
     when: hostname.changed
 
+  # Ansible's apt module has an "autoclean" option but it only removes packages
+  # that can no longer be downloaded.  Ansible v2.13 added the "clean" option
+  # which actually purges the apt cache, but that's newer than what we can
+  # install from the RasPiOS repos.  Instead, we'll manually clean the cache.
   - name: clean apt cache
-    apt:
-      autoclean: yes
+    command: "apt-get clean"
+    args:
+      warn: false
 
   - name: remove dependencies that are no longer required
     apt:

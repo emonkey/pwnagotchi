@@ -18,7 +18,6 @@ docker run \
   --privileged \
   -v /dev:/dev \
   -v ${PWD}:/build \
-  -v ${PWD}/../:/usr/local/src/pwnagotchi \
   -e PACKER_CACHE_DIR=/build/packer_cache \
   -e PACKER_CONFIG_DIR=/build/packer_plugins \
   packer-builder-arm-arm64 build pwnagotchi.pkr.hcl

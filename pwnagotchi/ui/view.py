@@ -16,18 +16,29 @@ from pwnagotchi.ui.components import *
 from pwnagotchi.ui.state import State
 from pwnagotchi.voice import Voice
 
-WHITE = 0xff
-BLACK = 0x00
+WHITE = 0x00
+BLACK = 0xFF
 ROOT = None
 
 
 class View(object):
     def __init__(self, config, impl, state=None):
-        global ROOT
+        global ROOT, BLACK, WHITE
+        
+        self.invert = 0
+        self._black = 0xFF
+        self._white = 0x00
+        if 'invert' in config['ui'] and config['ui']['invert'] == True:
+            logging.debug("INVERT BLACK/WHITES:" + str(config['ui']['invert']))
+            self.invert = 1
+            BLACK = 0x00
+            WHITE = 0xFF
+            self._black = 0x00
+            self._white = 0xFF
 
         # setup faces from the configuration in case the user customized them
         faces.load_from_config(config['ui']['faces'])
-
+            
         self._agent = None
         self._render_cbs = []
         self._config = config
@@ -54,11 +65,10 @@ class View(object):
             'line1': Line(self._layout['line1'], color=BLACK),
             'line2': Line(self._layout['line2'], color=BLACK),
 
-            'face': Text(value=faces.SLEEP, position=self._layout['face'], color=BLACK, font=fonts.Huge),
+            'face': Text(value=faces.SLEEP, position=(config['ui']['faces']['position_x'], config['ui']['faces']['position_y']), color=BLACK, font=fonts.Huge, png=config['ui']['faces']['png']),
 
-            'friend_face': Text(value=None, position=self._layout['friend_face'], font=fonts.Bold, color=BLACK),
-            'friend_name': Text(value=None, position=self._layout['friend_name'], font=fonts.BoldSmall,
-                                color=BLACK),
+            # 'friend_face': Text(value=None, position=self._layout['friend_face'], font=fonts.Bold, color=BLACK),
+            'friend_name': Text(value=None, position=self._layout['friend_face'], font=fonts.BoldSmall, color=BLACK),
 
             'name': Text(value='%s>' % 'pwnagotchi', position=self._layout['name'], color=BLACK, font=fonts.Bold),
 
@@ -99,6 +109,11 @@ class View(object):
         self._state.has_element(key)
 
     def add_element(self, key, elem):
+        if self.invert is 1 and elem.color:
+            if elem.color == 0xff:
+                elem.color = 0x00
+            elif elem.color == 0x00:
+                elem.color = 0xff
         self._state.add_element(key, elem)
 
     def remove_element(self, key):
@@ -154,8 +169,7 @@ class View(object):
         self.set('uptime', last_session.duration)
         self.set('channel', '-')
         self.set('aps', "%d" % last_session.associated)
-        self.set('shakes', '%d (%s)' % (last_session.handshakes, \
-                                        utils.total_unique_handshakes(self._config['bettercap']['handshakes'])))
+        self.set('shakes', '%d (%s)' % (last_session.handshakes, utils.total_unique_handshakes(self._config['bettercap']['handshakes'])))
         self.set_closest_peer(last_session.last_peer, last_session.peers)
         self.update()
 
@@ -245,7 +259,7 @@ class View(object):
 
     def wait(self, secs, sleeping=True):
         was_normal = self.is_normal()
-        part = secs / 10.0
+        part = secs/10.0
 
         for step in range(0, 10):
             # if we weren't in a normal state before going
@@ -257,11 +271,13 @@ class View(object):
                     if secs > 1:
                         self.set('face', faces.SLEEP)
                         self.set('status', self._voice.on_napping(int(secs)))
+
                     else:
                         self.set('face', faces.SLEEP2)
                         self.set('status', self._voice.on_awakening())
                 else:
                     self.set('status', self._voice.on_waiting(int(secs)))
+
                     good_mood = self._agent.in_good_mood()
                     if step % 2 == 0:
                         self.set('face', faces.LOOK_R_HAPPY if good_mood else faces.LOOK_R)
@@ -371,7 +387,7 @@ class View(object):
             state = self._state
             changes = state.changes(ignore=self._ignore_changes)
             if force or len(changes):
-                self._canvas = Image.new('1', (self._width, self._height), WHITE)
+                self._canvas = Image.new('1', (self._width, self._height), self._white)
                 drawer = ImageDraw.Draw(self._canvas)
 
                 plugins.on('ui_update', self)

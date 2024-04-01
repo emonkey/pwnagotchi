@@ -5,7 +5,7 @@ import os
 
 # https://stackoverflow.com/questions/14888799/disable-console-messages-in-flask-server
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
-os.environ['WERKZEUG_RUN_MAIN'] = 'true'
+os.environ['WERKZEUG_RUN_MAIN'] = 'false'
 
 from flask import Flask
 from flask_cors import CORS
@@ -44,8 +44,9 @@ class Server:
             CSRFProtect(app)
             Handler(self._config, self._agent, app)
 
-            logging.info("web ui available at http://%s:%d/" % (self._address, self._port))
+            formatServerIpAddress = '[::]' if self._address == '::' else self._address
+            logging.info("web ui available at http://%s:%d/" % (formatServerIpAddress, self._port))
 
-            app.run(host=self._address, port=self._port, debug=False)
+            app.run(host=self._address, port=self._port)
         else:
             logging.info("could not get ip of usb0, video server not starting")

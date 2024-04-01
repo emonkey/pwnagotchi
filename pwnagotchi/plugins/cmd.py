@@ -10,15 +10,15 @@ from pwnagotchi.utils import download_file, unzip, save_config, parse_version, m
 from pwnagotchi.plugins import default_path
 
 
-SAVE_DIR = '/usr/local/share/pwnagotchi/availaible-plugins/'
+SAVE_DIR = '/usr/local/share/pwnagotchi/available-plugins/'
 DEFAULT_INSTALL_PATH = '/usr/local/share/pwnagotchi/installed-plugins/'
 
 
-def add_parsers(parser):
+def add_parsers(subparsers):
     """
     Adds the plugins subcommand to a given argparse.ArgumentParser
     """
-    subparsers = parser.add_subparsers()
+    # subparsers = parser.add_subparsers()
     ## pwnagotchi plugins
     parser_plugins = subparsers.add_parser('plugins')
     plugin_subparsers = parser_plugins.add_subparsers(dest='plugincmd')
@@ -58,7 +58,7 @@ def add_parsers(parser):
     parser_plugins_edit = plugin_subparsers.add_parser('edit', help='Edit the options')
     parser_plugins_edit.add_argument('name', type=str, help='Name of the plugin')
 
-    return parser
+    return subparsers
 
 
 def used_plugin_cmd(args):
@@ -199,6 +199,9 @@ def list_plugins(args, config, pattern='*'):
     available_not_installed = set(available.keys()) - set(installed.keys())
 
     max_len_list = available_and_installed if args.installed else available_not_installed
+    if not max_len_list:
+        print('Maybe try: sudo pwnagotchi plugins update')
+        return 1
     max_len = max(map(len, max_len_list))
     header = line.format(name='Plugin', width=max_len, version='Version', enabled='Active', status='Status')
     line_length = max(max_len, len('Plugin')) + len(header) - len('Plugin') - 12 # lol
@@ -223,13 +226,11 @@ def list_plugins(args, config, pattern='*'):
                 if available_version > installed_version:
                     status = "installed (^)"
 
-            enabled = 'enabled' if plugin in config['main']['plugins'] and \
-                'enabled' in config['main']['plugins'][plugin] and \
-                    config['main']['plugins'][plugin]['enabled'] \
-                        else 'disabled'
+            enabled = 'enabled' if (plugin in config['main']['plugins'] and
+                                    'enabled' in config['main']['plugins'][plugin] and
+                                    config['main']['plugins'][plugin]['enabled']) else 'disabled'
 
             print(line.format(name=plugin, width=max_len, version='.'.join(installed_version), enabled=enabled, status=status))
-
 
     for plugin in sorted(available_not_installed):
         if not fnmatch(plugin, pattern):
@@ -241,7 +242,7 @@ def list_plugins(args, config, pattern='*'):
     print('-' * line_length)
 
     if not found:
-        logging.info('Maybe try: pwnagotchi plugins update')
+        print('Maybe try: sudo pwnagotchi plugins update')
         return 1
     return 0
 
@@ -273,7 +274,7 @@ def _get_installed(config):
     Get all installed plugins
     """
     installed = dict()
-    search_dirs = [ default_path, config['main']['custom_plugins'] ]
+    search_dirs = [default_path, config['main']['custom_plugins']]
     for search_dir in search_dirs:
         if search_dir:
             for filename in glob.glob(os.path.join(search_dir, "*.py")):
