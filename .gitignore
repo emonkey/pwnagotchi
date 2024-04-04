@@ -10,7 +10,8 @@ _utils
 config.laptop.yml
 .idea
 packer_cache
-output-pwnagotchi
+packer_plugins
+output
 .DS_Store
 build
 dist

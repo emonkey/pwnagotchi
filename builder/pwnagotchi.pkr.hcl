@@ -1,5 +1,10 @@
 packer {
   required_plugins {
+    arm-image = {
+      version = ">= 0.2.5"
+      source  = "github.com/solo-io/arm-image"
+    }
+
     ansible = {
       source = "github.com/hashicorp/ansible"
       version = ">= 1.1.1"
@@ -23,9 +28,14 @@ locals {
 }
 
 source "arm-image" "pwnagotchi" {
+  image_type        = "raspberrypi"
   iso_url           = "https://downloads.raspberrypi.com/raspios_lite_arm64/images/raspios_lite_arm64-2024-03-15/2024-03-15-raspios-bookworm-arm64-lite.img.xz"
   iso_checksum      = "sha256:58a3ec57402c86332e67789a6b8f149aeeb4e7bb0a16c9388a66ea6e07012e45"
-  output_filename   = "pwnagotchi-raspios-lite-1.5.5.iso"
+  output_filename   = "output/pwnagotchi-raspios-lite-1.5.5.iso"
+  // qemu_binary       = "/usr/libexec/qemu-binfmt/aarch64-binfmt-P"
+  // qemu_binary       = "/usr/bin/qemu-aarch64-static"
+  // qemu_binary       = "qemu-aarch64-static"
+  image_mounts      = ["/boot/firmware","/"]
   target_image_size = 12*1024*1024*1024
 }
 
@@ -45,8 +55,8 @@ build {
   provisioner "shell" {
     inline = [
       "dpkg-architecture",
-      "apt-get -y --allow-releaseinfo-change update && apt-get -y dist-upgrade",
-      "apt install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev git"
+      "apt-get update && apt-get -y full-upgrade",
+      "apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev git"
     ]
   }
 
@@ -64,7 +74,10 @@ build {
 
   provisioner "shell" {
     inline = [
-      "pip3 install --no-cache-dir ansible meson"
+      "python -m pip cache purge",
+      "python -m pip install --upgrade pip setuptools wheel meson --break-system-packages",
+      "python -m pip install https://files.pythonhosted.org/packages/17/90/0849d3708805372d117ab84d1f8282295ee9968138935ef6a863085d4f7e/ansible_core-2.16.5-py3-none-any.whl",
+      "ansible-galaxy collection install community.general"
     ]
   }
 
@@ -112,6 +125,8 @@ build {
     playbook_file   = "pwnagotchi.yml"
     command         = "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1 PWN_VERSION=${local.pwn_version} PWN_HOSTNAME=${local.pwn_hostname} ansible-playbook"
     extra_arguments = [
+      "--connection=chroot",
+      "--become-user=root",
       "--extra-vars \"ansible_python_interpreter=/usr/bin/python\""
     ]
   }
