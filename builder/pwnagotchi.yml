@@ -11,16 +11,6 @@
     pwnagotchi:
       hostname: "{{ lookup('env', 'PWN_HOSTNAME') | default('pwnagotchi', true) }}"
       version: "{{ lookup('env', 'PWN_VERSION') | default('main', true) }}"
-    system:
-      boot_options:
-        - "dtoverlay=dwc2"
-        - "dtoverlay=spi1-3cs"
-        - "dtparam=spi=on"
-        - "dtparam=i2c_arm=on"
-        - "dtparam=i2c1=on"
-        - "gpu_mem=16"
-      modules:
-        - "i2c-dev"
     services:
       enable:
         - bettercap.service
@@ -254,19 +244,14 @@
         path: /etc/rc.local
         state: absent
 
-    - name: adjust /boot/config.txt
+    - name: configure /boot/firmware/cmdline.txt
       lineinfile:
-        dest: /boot/config.txt
-        insertafter: EOF
-        line: '{{ item }}'
-      with_items: "{{system.boot_options}}"
-
-    - name: adjust /etc/modules
-      lineinfile:
-        dest: /etc/modules
-        insertafter: EOF
-        line: '{{ item }}'
-      with_items: "{{system.modules}}"
+        path: /boot/firmware/cmdline.txt
+        backrefs: True
+        state: present
+        backup: no
+        regexp: '(.*)$'
+        line: '\1 modules-load=dwc2,g_ether'
 
     - name: change hostname
       lineinfile:
