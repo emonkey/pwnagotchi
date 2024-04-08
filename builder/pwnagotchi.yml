@@ -39,11 +39,13 @@
         - ifup@wlan0.service
         - dnsmasq.service
     packages:
-      bettercap:
-        url: "https://github.com/bettercap/bettercap/releases/download/v2.31.1/bettercap_linux_armhf_v2.31.1.zip"
-        ui: "https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip"
       pwngrid:
-        url: "https://github.com/evilsocket/pwngrid/releases/download/v1.10.3/pwngrid_linux_armhf_v1.10.3.zip"
+        source: "https://github.com/jayofelony/pwngrid.git"
+      bettercap:
+        source: "https://github.com/jayofelony/bettercap.git"
+        ui: "https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip"
+      caplets:
+        source: "https://github.com/jayofelony/caplets.git"
       apt:
         hold:
           - firmware-atheros
@@ -351,6 +353,7 @@
     #     dest: /usr/lib/firmware/brcm/brcmfmac43455-sdio.bin
     #     follow: true
 
+    # # qemu-arm-static: Could not open '/lib/ld-linux-armhf.so.3'
     # - name: make firmware patch (bcm43436b0)
     #   shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/ && make"
     #   args:
@@ -505,37 +508,14 @@
         depth: 1
       register: pwnagotchigit
 
-    # - name: replace pwnagotchi requirements
-    #   copy:
-    #     dest: /usr/local/src/pwnagotchi/requirements.txt
-    #     content: |
-    #       file-read-backwards==3.0.0
-    #       flask-cors==4.0.0
-    #       flask-wtf==1.2.1
-    #       flask==3.0.2
-    #       gast==0.5.4
-    #       inky[rpi]==1.5.0
-    #       matplotlib==3.8.3
-    #       numpy==1.26.4
-    #       Pillow==10.2.0
-    #       pycryptodome==3.20.0
-    #       python-dateutil==2.9.0
-    #       PyYAML==6.0.1
-    #       requests==2.31.0
-    #       scapy==2.5.0
-    #       scipy==1.12.0
-    #       smbus2==0.4.3
-    #       spidev==3.6
-    #       stable-baselines3==2.3.0
-    #       tensorflow-estimator==2.15.0
-    #       tensorflow==2.16.1
-    #       toml==0.10.2
-    #       tweepy==4.14.0
-    #       websockets==12.0
-    #   when: (pwnagotchigit.changed) or (pip_packages['pwnagotchi'] is undefined) or (pip_packages['pwnagotchi'] != pwnagotchi_version)
+    # # fix for error: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
+    - name: remove pip cache
+      file:
+        state: absent
+        path: /root/.cache/pip
 
     - name: build pwnagotchi wheel
-      command: "pip3 install . --no-cache-dir --break-system-packages"
+      command: "pip install . --no-cache-dir --break-system-packages"
       args:
         chdir: /usr/local/src/pwnagotchi
 
@@ -585,28 +565,42 @@
     ###########################################
     # Set up plugins and extras
     ###########################################
-    - name: download and install pwngrid
-      unarchive:
-        src: "{{ packages.pwngrid.url }}"
-        dest: /usr/bin
-        remote_src: yes
-        mode: 0755
+    - name: download pwngrid source
+      git:
+        repo: "{{ packages.pwngrid.source }}"
+        dest: /usr/local/src/pwngrid
 
-    - name: download and install bettercap
-      unarchive:
-        src: "{{ packages.bettercap.url }}"
-        dest: /usr/bin
-        remote_src: yes
-        exclude:
-          - README.md
-          - LICENSE.md
-        mode: 0755
+    - name: install pwngrid from source
+      shell: "export GOPATH=$HOME/go && export PATH=/usr/local/go/bin:$PATH:$GOPATH/bin && go mod tidy && make && make install"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/pwngrid
+
+    - name: remove pwngrid folder
+      file:
+        state: absent
+        path: /usr/local/src/pwngrid
+
+    - name: download bettercap source
+      git:
+        repo: "{{ packages.bettercap.source }}"
+        dest: /usr/local/src/bettercap
+
+    - name: install bettercap from source
+      shell: "export GOPATH=$HOME/go && export PATH=/usr/local/go/bin:$PATH:$GOPATH/bin && go mod tidy && make && make install"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/bettercap
+
+    - name: remove bettercap folder
+      file:
+        state: absent
+        path: /usr/local/src/bettercap
 
     - name: clone bettercap caplets
       git:
-        repo: https://github.com/bettercap/caplets.git
+        repo: "{{ packages.caplets.source }}"
         dest: /tmp/caplets
-        depth: 1
       register: capletsgit
 
     - name: install bettercap caplets
@@ -622,14 +616,13 @@
         remote_src: yes
         mode: 0755
 
-    - name: add HDMI powersave to rc.local
-      blockinfile:
-        path: /etc/rc.local
-        insertbefore: "exit 0"
-        block: |
-          if ! /opt/vc/bin/tvservice -s | egrep 'HDMI|DVI'; then
-            /opt/vc/bin/tvservice -o
-          fi
+    # to always have the bettercap webui available (because why not?)
+    - name: copy pwnagotchi-manual over pwnagotchi-auto caplet
+      ansible.builtin.copy:
+        src: /usr/local/share/bettercap/caplets/pwnagotchi-manual.cap
+        dest: /usr/local/share/bettercap/caplets/pwnagotchi-auto.cap
+        force: true
+      ignore_errors: true
 
     - name: create /etc/pwnagotchi folder
       file:
@@ -648,7 +641,7 @@
           # Add your configuration overrides on this file any configuration changes done to default.toml will be lost!
           # Example:
           # ui.display.enabled = true
-          # ui.display.type = "waveshare_2"
+          # ui.display.type = "waveshare_4"
       when: not user_config.stat.exists
 
     - name: configure motd
@@ -686,15 +679,6 @@
     ###########################################
     # Cleanup
     ###########################################
-    # Ansible's apt module has an "autoclean" option but it only removes packages
-    # that can no longer be downloaded.  Ansible v2.13 added the "clean" option
-    # which actually purges the apt cache, but that's newer than what we can
-    # install from the RasPiOS repos.  Instead, we'll manually clean the cache.
-    - name: clean apt cache
-      command: "apt-get clean"
-      args:
-        warn: false
-
     - name: remove dependencies that are no longer required
       apt:
         autoremove: yes
