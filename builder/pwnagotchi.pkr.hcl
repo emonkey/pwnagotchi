@@ -45,21 +45,17 @@ build {
     "source.arm-image.pwnagotchi"
   ]
 
-  provisioner "shell" {
-    inline = [
-      "sed -i 's/^\\([^#]\\)/#\\1/g' /etc/ld.so.preload"
-    ]
-    valid_exit_codes = [0, 2] # ignore if file does not exist
-  }
-
+  ## Install packages needed for building from source
   provisioner "shell" {
     inline = [
       "dpkg-architecture",
       "apt-get update && apt-get -y full-upgrade",
-      "apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev git"
+      "apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libhdf5-dev git",
+      "apt-get install -y qemu-user-static qemu-utils"
     ]
   }
 
+  ## Install Python 3.10
   provisioner "shell" {
     inline = [
       "wget https://www.python.org/ftp/python/${local.python_version}/Python-${local.python_version}.tgz",
@@ -72,10 +68,11 @@ build {
     ]
   }
 
+  ## Installing Python build tools and Ansible
   provisioner "shell" {
     inline = [
       "python -m pip cache purge",
-      "python -m pip install --upgrade pip setuptools wheel meson --break-system-packages",
+      "python -m pip install --upgrade pip setuptools wheel meson h5py --break-system-packages",
       "python -m pip install https://files.pythonhosted.org/packages/17/90/0849d3708805372d117ab84d1f8282295ee9968138935ef6a863085d4f7e/ansible_core-2.16.5-py3-none-any.whl",
       "ansible-galaxy collection install community.general"
     ]
@@ -121,6 +118,7 @@ build {
     inline = ["chmod +x /etc/update-motd.d/*"]
   }
 
+  ## Execute Ansible playbook
   provisioner "ansible-local" {
     playbook_file   = "pwnagotchi.yml"
     command         = "ANSIBLE_FORCE_COLOR=1 PYTHONUNBUFFERED=1 PWN_VERSION=${local.pwn_version} PWN_HOSTNAME=${local.pwn_hostname} ansible-playbook"
@@ -131,10 +129,13 @@ build {
     ]
   }
 
+  ## Clone Nexmon source
   provisioner "shell" {
     inline = [
-      "sed -i 's/^#\\(.+\\)/\\1/g' /etc/ld.so.preload"
+      "git config --global core.compression 0",
+      "cd /usr/local/src/",
+      "git clone --depth 1 https://github.com/seemoo-lab/nexmon.git",
+      "git config --global core.compression -1"
     ]
-    valid_exit_codes = [0, 2] # ignore if file does not exist
   }
 }

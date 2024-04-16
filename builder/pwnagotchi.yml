@@ -4,9 +4,20 @@
   gather_facts: true
   become: true
   vars:
+    boards:
+      - {
+          kernel: "6.1.21-v7+",
+          name: "PiZero2W",
+          firmware: "brcmfmac43436-sdio.bin",
+          patch: "bcm43436b0/9_88_4_65",
+          cpu: any, #cortex-a53
+          arch_flags: "-arch armv7l"
+        }
     kernel:
       min: "6.6"
-      full: "6.6.20+rpt-rpi-v8"
+      full: "6.1.21+"
+      full_2w: "6.1.21-v7+"
+      full_4b: "6.1.21-v7l+"
       full_pi5: "6.6.20+rpt-rpi-2712"
     pwnagotchi:
       hostname: "{{ lookup('env', 'PWN_HOSTNAME') | default('pwnagotchi', true) }}"
@@ -14,7 +25,8 @@
     services:
       enable:
         - bettercap.service
-        - epd-fuse.service
+        - bluetooth.service
+        - dphys-swapfile.service
         - fstrim.timer
         - pwnagotchi.service
         - pwngrid-peer.service
@@ -23,11 +35,8 @@
         - apt-daily-upgrade.timer
         - apt-daily.service
         - apt-daily.timer
-        - wpa_supplicant.service
-        - bluetooth.service
-        - triggerhappy.service
         - ifup@wlan0.service
-        - dnsmasq.service
+        - wpa_supplicant.service
     packages:
       pwngrid:
         source: "https://github.com/jayofelony/pwngrid.git"
@@ -36,6 +45,8 @@
         ui: "https://github.com/bettercap/ui/releases/download/v1.3.0/ui.zip"
       caplets:
         source: "https://github.com/jayofelony/caplets.git"
+      libisl:
+        source: "https://libisl.sourceforge.io/isl-0.26.tar.gz"
       apt:
         hold:
           - firmware-atheros
@@ -44,19 +55,17 @@
           - firmware-misc-nonfree
           - firmware-realtek
         remove:
-          - raspberrypi-net-mods
           - dhpys-swapfile
           - dhcpcd5
-          - triggerhappy
           - nfs-common
-          - wpa_supplicant
+          - triggerhappy
+          - wpasupplicant
         install:
           - autoconf
           - bc
           - bison
           - build-essential
           - cryptsetup
-          - dnsmasq
           - dphys-swapfile
           - fbi
           - firmware-atheros
@@ -70,26 +79,31 @@
           - fonts-dejavu-extra
           - fonts-freefont-ttf
           - fonts-ipaexfont-gothic
+          - g++
           - gawk
+          - gcc-arm-linux-gnueabihf
           - gcc-arm-none-eabi
           - git
           - golang
           - kalipi-bootloader
           - kalipi-kernel
+          - kalipi-kernel-headers
           - kalipi-re4son-firmware
           - libatlas-base-dev
           - libavcodec59
           - libavformat59
           - libbluetooth-dev
           - libbz2-dev
-          - libc6-dev
           - libc6-armhf-cross
+          - libc6-dev
           - libcap-dev
           - libcurl-ocaml-dev
           - libfuse-dev
+          - libgmp3-dev
           - libgstreamer1.0-0
           - libimath-dev
           - libjasper-dev
+          - libmpc3
           - libncursesw5-dev
           - libnetfilter-queue-dev
           - libopenexr-dev
@@ -97,6 +111,7 @@
           - libopenmpi-dev
           - libopenmpi3
           - libpcap-dev
+          - libpng-dev
           - libraspberrypi-bin
           - libraspberrypi-dev
           - libraspberrypi-doc
@@ -129,16 +144,19 @@
           - python3-tweepy
           - python3-werkzeug
           - python3-yaml
-          - raspberrypi-kernel-headers
+          - qpdf
           - rsync
           - screen
           - tcpdump
+          - texinfo
           - unzip
           - usrmerge
           - vim
           - wget
-  environment:
-    ARCHFLAGS: "-arch aarch64"
+    libraries:
+      - ld-linux-armhf.so.3
+      - libc.so.6
+      - libm.so.6
 
   tasks:
     ###########################################
@@ -201,10 +219,6 @@
       apt:
         upgrade: full
 
-    - name: install usrmerge dependency
-      apt:
-        deb: https://snapshot.debian.org/archive/debian/20160413T160058Z/pool/main/libp/libpng/libpng12-0_1.2.54-6_arm64.deb
-
     - name: update apt package cache
       apt:
         update_cache: yes
@@ -219,6 +233,13 @@
         state: present
         update_cache: yes
         install_recommends: false
+
+    - name: create symlinks for libraries
+      file:
+        src: "/usr/arm-linux-gnueabihf/lib/{{ item }}"
+        dest: "/usr/lib/{{ item }}"
+        state: link
+      with_items: "{{ libraries }}"
 
     ###########################################
     # Set up host
@@ -309,73 +330,53 @@
     ###########################################
     # BUILD nexmon DRIVER
     ###########################################
-    # - name: disable git compression for nexmon
-    #   command: "git config --global core.compression 0"
+    - name: download isl source
+      unarchive:
+        src: "{{ packages.libisl.source }}"
+        dest: /usr/local/src/
+        remote_src: yes
+        mode: 0755
 
-    # - name: clone nexmon repository
-    #   git:
-    #     repo: https://github.com/seemoo-lab/nexmon.git
-    #     dest: /usr/local/src/nexmon
-    #     version: master
-    #     depth: 1
-
-    # - name: reenable git compression
-    #   command: "git config --global core.compression -1"
-
-    # # warning: this statement may fall through [-Wimplicit-fallthrough=]
-    # - name: make firmware, RPi4
-    #   shell: "source ./setup_env.sh && make"
+    # - name: install isl from source
+    #   shell: "./configure --enable-static=yes --enable-shared=no --build=armv7l && make && make install"
     #   args:
     #     executable: /bin/bash
-    #     chdir: /usr/local/src/nexmon/
+    #     chdir: /usr/local/src/isl-0.26
     #   environment:
-    #     QEMU_UNAME: "{{ kernel.full }}"
-    #     ARCHFLAGS: "-arch aarch64"
+    #     ARCHFLAGS: "-arch armv7l"
 
-    # - name: install new firmware (bcm43455c0), RPi4 RPi5
-    #   copy:
-    #     src: /usr/local/src/nexmon/patches/bcm43455c0/7_45_206/nexmon/brcmfmac43455-sdio.bin
-    #     dest: /usr/lib/firmware/brcm/brcmfmac43455-sdio.bin
-    #     follow: true
+    # - name: create symlink for /usr/lib/libisl.so.10
+    #   file:
+    #     src: "/usr/local/lib/libisl.so"
+    #     dest: "/usr/lib/libisl.so.10"
+    #     state: link
 
-    # # qemu-arm-static: Could not open '/lib/ld-linux-armhf.so.3'
-    # - name: make firmware patch (bcm43436b0)
+    # - name: "make firmware patch (PiZero2W)"
     #   shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/ && make"
     #   args:
     #     executable: /bin/bash
     #     chdir: /usr/local/src/nexmon/
     #   environment:
-    #     QEMU_UNAME: "{{ kernel.full }}"
-    #     ARCHFLAGS: "-arch aarch64"
+    #     QEMU_UNAME: "{{ kernel.full_2w }}"
 
-    # - name: install new firmware (bcm43436b0)
+    # - name: "install new firmware (PiZero2W)"
     #   copy:
-    #     src: /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/brcmfmac43436-sdio.bin
-    #     dest: /usr/lib/firmware/brcm/brcmfmac43436-sdio.bin
+    #     src: "/usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/brcmfmac43436-sdio.bin"
+    #     dest: "/usr/lib/firmware/brcm/brcmfmac43436-sdio.bin"
     #     follow: true
-
-    # - name: make firmware patch (bcm43430a1)
-    #   shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/ && make"
-    #   args:
-    #     executable: /bin/bash
-    #     chdir: /usr/local/src/nexmon/
     #   environment:
-    #     QEMU_UNAME: "{{ kernel.full }}"
-    #     ARCHFLAGS: "-arch aarch64"
+    #     QEMU_UNAME: "{{ kernel.full_2w }}"
 
-    # - name: copy modified driver, RPi4
-    #   copy:
-    #     src: "/usr/local/src/nexmon/patches/driver/brcmfmac_{{ kernel.min }}.y-nexmon/brcmfmac.ko"
-    #     dest: "/usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko"
-    #   environment:
-    #     QEMU_UNAME: "{{ kernel.full }}"
-    #     ARCHFLAGS: "-arch aarch64"
+    # - name: backup original driver
+    #   command: "mv /usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz /usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz.orig"
 
-    # - name: install new firmware (bcm43430a1)
+    # - name: copy modified driver
     #   copy:
-    #     src: /usr/local/src/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac43430-sdio.bin
-    #     dest: /usr/lib/firmware/brcm/brcmfmac43430-sdio.bin
-    #     follow: true
+    #     src: "/usr/local/src/nexmon/patches/driver/brcmfmac_6.1.y-nexmon/brcmfmac.ko"
+    #     dest: "/usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko"
+
+    # - name : load brcmfmac drivers
+    #   command: "/sbin/depmod -a {{ kernel.full_2w }}"
 
     # - name: copy 43430-sdio as 43436s-sdio for the special 43430/1 /2
     #   copy:
@@ -405,7 +406,7 @@
     #   environment:
     #     QEMU_UNAME: "{{ kernel.full }}"
 
-    # # To shrink the final image, remove the nexmon directory (takes 2.5G of space) post build and installation
+    # ## To shrink the final image, remove the nexmon directory (takes 2.5G of space) post build and installation
     # - name: Delete nexmon content & directory
     #   file:
     #     state: absent
@@ -493,7 +494,7 @@
         depth: 1
       register: pwnagotchigit
 
-    # # fix for error: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
+    ## fix for error: THESE PACKAGES DO NOT MATCH THE HASHES FROM THE REQUIREMENTS FILE
     - name: remove pip cache
       file:
         state: absent
@@ -503,6 +504,7 @@
       command: "pip install . --no-cache-dir --break-system-packages"
       args:
         chdir: /usr/local/src/pwnagotchi
+      when: (pwnagotchigit.changed) or (pip_packages['pwnagotchi'] is undefined) or (pip_packages['pwnagotchi'] != pwnagotchi_version)
 
     - name: create /usr/local/share/pwnagotchi/ folder
       file:
