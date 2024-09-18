@@ -19,42 +19,42 @@ def add_parsers(subparsers):
     Adds the plugins subcommand to a given argparse.ArgumentParser
     """
     # subparsers = parser.add_subparsers()
-    ## pwnagotchi plugins
+    # pwnagotchi plugins
     parser_plugins = subparsers.add_parser('plugins')
     plugin_subparsers = parser_plugins.add_subparsers(dest='plugincmd')
 
-    ## pwnagotchi plugins search
+    # pwnagotchi plugins search
     parser_plugins_search = plugin_subparsers.add_parser('search', help='Search for pwnagotchi plugins')
     parser_plugins_search.add_argument('pattern', type=str, help="Search expression (wildcards allowed)")
 
-    ## pwnagotchi plugins list
+    # pwnagotchi plugins list
     parser_plugins_list = plugin_subparsers.add_parser('list', help='List available pwnagotchi plugins')
     parser_plugins_list.add_argument('-i', '--installed', action='store_true', required=False, help='List also installed plugins')
 
-    ## pwnagotchi plugins update
+    # pwnagotchi plugins update
     parser_plugins_update = plugin_subparsers.add_parser('update', help='Updates the database')
 
-    ## pwnagotchi plugins upgrade
+    # pwnagotchi plugins upgrade
     parser_plugins_upgrade = plugin_subparsers.add_parser('upgrade', help='Upgrades plugins')
     parser_plugins_upgrade.add_argument('pattern', type=str, nargs='?', default='*', help="Filter expression (wildcards allowed)")
 
-    ## pwnagotchi plugins enable
+    # pwnagotchi plugins enable
     parser_plugins_enable = plugin_subparsers.add_parser('enable', help='Enables a plugin')
     parser_plugins_enable.add_argument('name', type=str, help='Name of the plugin')
 
-    ## pwnagotchi plugins disable
+    # pwnagotchi plugins disable
     parser_plugins_disable = plugin_subparsers.add_parser('disable', help='Disables a plugin')
     parser_plugins_disable.add_argument('name', type=str, help='Name of the plugin')
 
-    ## pwnagotchi plugins install
+    # pwnagotchi plugins install
     parser_plugins_install = plugin_subparsers.add_parser('install', help='Installs a plugin')
     parser_plugins_install.add_argument('name', type=str, help='Name of the plugin')
 
-    ## pwnagotchi plugins uninstall
+    # pwnagotchi plugins uninstall
     parser_plugins_uninstall = plugin_subparsers.add_parser('uninstall', help='Uninstalls a plugin')
     parser_plugins_uninstall.add_argument('name', type=str, help='Name of the plugin')
 
-    ## pwnagotchi plugins edit
+    # pwnagotchi plugins edit
     parser_plugins_edit = plugin_subparsers.add_parser('edit', help='Edit the options')
     parser_plugins_edit.add_argument('name', type=str, help='Name of the plugin')
 
@@ -75,7 +75,7 @@ def handle_cmd(args, config):
     if args.plugincmd == 'update':
         return update(config)
     elif args.plugincmd == 'search':
-        args.installed = True # also search in installed plugins
+        args.installed = True  # also search in installed plugins
         return list_plugins(args, config, args.pattern)
     elif args.plugincmd == 'install':
         return install(args, config)
@@ -100,7 +100,7 @@ def edit(args, config):
     Edit the config of the plugin
     """
     plugin = args.name
-    editor = os.environ.get('EDITOR', 'vim') # because vim is the best
+    editor = os.environ.get('EDITOR', 'vim')  # because vim is the best
 
     if plugin not in config['main']['plugins']:
         return 1
@@ -204,7 +204,7 @@ def list_plugins(args, config, pattern='*'):
         return 1
     max_len = max(map(len, max_len_list))
     header = line.format(name='Plugin', width=max_len, version='Version', enabled='Active', status='Status')
-    line_length = max(max_len, len('Plugin')) + len(header) - len('Plugin') - 12 # lol
+    line_length = max(max_len, len('Plugin')) + len(header) - len('Plugin') - 12  # lol
 
     print('-' * line_length)
     print(header)

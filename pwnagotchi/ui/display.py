@@ -21,7 +21,8 @@ class Display(View):
         self._canvas_next = None
         self._render_thread_instance = threading.Thread(
             target=self._render_thread,
-            daemon=True
+            daemon=True,
+            name="Renderer"
         )
         self._render_thread_instance.start()
 
@@ -235,6 +236,9 @@ class Display(View):
     def is_inky(self):
         return self._implementation.name == 'inky'
 
+    def is_inkyv2(self):
+        return self._implementation.name == 'inkyv2'
+
     def is_dummy_display(self):
         return self._implementation.name == 'dummydisplay'
 
@@ -264,6 +268,12 @@ class Display(View):
         
     def is_waveshareoledlcd(self):
         return self._implementation.name == 'waveshareoledlcd'
+        
+    def is_waveshareoledlcdvert(self):
+        return self._implementation.name == 'waveshareoledlcdvert'
+        
+    def is_i2coled(self):
+        return self._implementation.name == 'i2coled'
 
     def is_waveshare35lcd(self):
         return self._implementation.name == 'waveshare35lcd'
@@ -272,7 +282,7 @@ class Display(View):
         return self._implementation.name == 'adafruit2in13_v3'
 
     def is_waveshare_any(self):
-        return self.is_waveshare_v1() or self.is_waveshare_v2()
+        return self.is_waveshare_v1() or self.is_waveshare_v2() or self.is_waveshare_v4() or self.is_waveshare_v3
 
     def init_display(self):
         if self._enabled:

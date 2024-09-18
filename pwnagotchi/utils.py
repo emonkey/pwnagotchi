@@ -279,6 +279,9 @@ def load_config(args):
     elif config['ui']['display']['type'] in ('inky', 'inkyphat'):
         config['ui']['display']['type'] = 'inky'
 
+    elif config['ui']['display']['type'] in ('inkyv2', 'inkyphatv2'):
+        config['ui']['display']['type'] = 'inkyv2'
+
     elif config['ui']['display']['type'] in ('papirus', 'papi'):
         config['ui']['display']['type'] = 'papirus'
 
@@ -315,8 +318,14 @@ def load_config(args):
     elif config['ui']['display']['type'] in ('waveshareoledlcd'):
         config['ui']['display']['type'] = 'waveshareoledlcd'
 
+    elif config['ui']['display']['type'] in ('i2coled'):
+        config['ui']['display']['type'] = 'i2coled'
+
     elif config['ui']['display']['type'] in ('waveshare35lcd'):
         config['ui']['display']['type'] = 'waveshare35lcd'
+
+    elif config['ui']['display']['type'] in ('waveshareoledlcdvert'):
+        config['ui']['display']['type'] = 'waveshareoledlcdvert'
 
     # E-INK DISPLAYS ------------------------------------------------------------------------
 

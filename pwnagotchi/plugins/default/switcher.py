@@ -57,7 +57,7 @@ def run_task(name, options):
         """ % (name, task_service_name, name))
 
     if 'reboot' in options and options['reboot']:
-        # create a indication file!
+        # create an indication file!
         # if this file is set, we want the switcher-tasks to run
         open('/root/.switcher', 'a').close()
 
