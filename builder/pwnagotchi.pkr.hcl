@@ -49,33 +49,21 @@ build {
   provisioner "shell" {
     inline = [
       "dpkg-architecture",
+      "dpkg --add-architecture armhf",
       "apt-get update && apt-get -y full-upgrade",
-      "apt-get install -y build-essential zlib1g-dev libncurses5-dev libgdbm-dev libnss3-dev libssl-dev libreadline-dev libffi-dev libhdf5-dev git",
+      "apt-get install -y --no-install-recommends ansible build-essential",
       "apt-get install -y qemu-user-static qemu-utils"
     ]
   }
 
-  ## Install Python 3.10
+  ## Download Nexmon source
   provisioner "shell" {
-    inline = [
-      "wget https://www.python.org/ftp/python/${local.python_version}/Python-${local.python_version}.tgz",
-      "tar -xzvf Python-${local.python_version}.tgz",
-      "cd Python-${local.python_version}/",
-      "./configure --enable-optimizations",
-      "make install",
-      "rm /usr/bin/python",
-      "ln -s /usr/local/bin/python3.10 /usr/bin/python"
-    ]
+    inline = ["mkdir /usr/local/src/nexmon"]
   }
 
-  ## Installing Python build tools and Ansible
-  provisioner "shell" {
-    inline = [
-      "python -m pip cache purge",
-      "python -m pip install --upgrade pip setuptools wheel meson h5py --break-system-packages",
-      "python -m pip install https://files.pythonhosted.org/packages/17/90/0849d3708805372d117ab84d1f8282295ee9968138935ef6a863085d4f7e/ansible_core-2.16.5-py3-none-any.whl",
-      "ansible-galaxy collection install community.general"
-    ]
+  provisioner "file" {
+    source      = "/nexmon/"
+    destination = "/usr/local/src/nexmon/"
   }
 
   dynamic "provisioner" {
@@ -126,16 +114,6 @@ build {
       "--connection=chroot",
       "--become-user=root",
       "--extra-vars \"ansible_python_interpreter=/usr/bin/python\""
-    ]
-  }
-
-  ## Clone Nexmon source
-  provisioner "shell" {
-    inline = [
-      "git config --global core.compression 0",
-      "cd /usr/local/src/",
-      "git clone --depth 1 https://github.com/seemoo-lab/nexmon.git",
-      "git config --global core.compression -1"
     ]
   }
 }

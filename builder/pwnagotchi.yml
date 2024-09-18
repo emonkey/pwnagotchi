@@ -15,18 +15,16 @@
         }
     kernel:
       min: "6.6"
-      full: "6.1.21+"
+      full: "6.6.28+rpt-rpi-v8"
       full_2w: "6.1.21-v7+"
       full_4b: "6.1.21-v7l+"
-      full_pi5: "6.6.20+rpt-rpi-2712"
+      full_pi5: "6.6.28+rpt-rpi-2712"
     pwnagotchi:
       hostname: "{{ lookup('env', 'PWN_HOSTNAME') | default('pwnagotchi', true) }}"
       version: "{{ lookup('env', 'PWN_VERSION') | default('main', true) }}"
     services:
       enable:
         - bettercap.service
-        - bluetooth.service
-        - dphys-swapfile.service
         - fstrim.timer
         - pwnagotchi.service
         - pwngrid-peer.service
@@ -35,6 +33,7 @@
         - apt-daily-upgrade.timer
         - apt-daily.service
         - apt-daily.timer
+        - bluetooth.service
         - ifup@wlan0.service
         - wpa_supplicant.service
     packages:
@@ -56,7 +55,6 @@
           - firmware-realtek
         remove:
           - dhpys-swapfile
-          - dhcpcd5
           - nfs-common
           - triggerhappy
           - wpasupplicant
@@ -65,7 +63,6 @@
           - bc
           - bison
           - build-essential
-          - cryptsetup
           - dphys-swapfile
           - fbi
           - firmware-atheros
@@ -85,33 +82,29 @@
           - gcc-arm-none-eabi
           - git
           - golang
-          - kalipi-bootloader
-          - kalipi-kernel
-          - kalipi-kernel-headers
-          - kalipi-re4son-firmware
           - libatlas-base-dev
           - libavcodec59
           - libavformat59
           - libbluetooth-dev
           - libbz2-dev
-          - libc6-armhf-cross
           - libc6-dev
+          - libc6-armhf-cross
           - libcap-dev
           - libcurl-ocaml-dev
+          - libelf-dev
+          - libffi-dev
+          - libfl-dev
           - libfuse-dev
+          - libgdbm-dev
           - libgmp3-dev
           - libgstreamer1.0-0
-          - libimath-dev
-          - libjasper-dev
-          - libmpc3
+          - libhdf5-dev
           - libncursesw5-dev
           - libnetfilter-queue-dev
-          - libopenexr-dev
           - libopenjp2-7
           - libopenmpi-dev
           - libopenmpi3
           - libpcap-dev
-          - libpng-dev
           - libraspberrypi-bin
           - libraspberrypi-dev
           - libraspberrypi-doc
@@ -126,12 +119,12 @@
           - lsof
           - make
           - ntp
+          - python3-dev
           - python3-dbus
           - python3-flask
           - python3-flask-cors
           - python3-flaskext.wtf
           - python3-gast
-          - python3-mpi4py
           - python3-pil
           - python3-pip
           - python3-pycryptodome
@@ -145,14 +138,20 @@
           - python3-werkzeug
           - python3-yaml
           - qpdf
+          - raspberrypi-kernel-headers
           - rsync
           - screen
           - tcpdump
           - texinfo
           - unzip
-          - usrmerge
           - vim
           - wget
+          - xxd
+          - zlib1g-dev
+          - libisl23:armhf
+          - libmpfr6:armhf
+          - libmpc3:armhf
+          - libstdc++6:armhf
     libraries:
       - ld-linux-armhf.so.3
       - libc.so.6
@@ -162,63 +161,6 @@
     ###########################################
     # Update repositories and install packages
     ###########################################
-    - name: Add re4son-kernel repo key
-      apt_key:
-        keyserver: keyserver.ubuntu.com
-        id: 11764EE8AC24832F
-        state: present
-
-    - name: Add re4son-kernel repository
-      apt_repository:
-        repo: deb http://http.re4son-kernel.com/re4son/ kali-pi main
-        state: present
-
-    - name: create /etc/apt/preferences.d/kali.pref
-      copy:
-        dest: /etc/apt/preferences.d/kali.pref
-        force: yes
-        content: |
-          # ensure kali packages that are installed take precedence
-          Package: *
-          Pin: release n=kali-pi
-          Pin-Priority: 999
-
-    - name: add firmware packages to hold
-      dpkg_selections:
-        name: "{{ item }}"
-        selection: hold
-      with_items: "{{ packages.apt.hold }}"
-
-    - name: Add jammy repo key
-      apt_key:
-        keyserver: keyserver.ubuntu.com
-        id: 871920D1991BC93C
-        state: present
-
-    - name: Add jammy archive repository
-      apt_repository:
-        repo: deb [arch=amd64,i386] http://archive.ubuntu.com/ubuntu/ jammy main universe
-        state: present
-
-    - name: Add xenial repo key
-      apt_key:
-        keyserver: keyserver.ubuntu.com
-        id: 3B4FE6ACC0B21F32
-        state: present
-
-    - name: Add xenial arm64 ports repository
-      apt_repository:
-        repo: deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports xenial main universe
-        state: present
-
-    - name: update apt package cache
-      apt:
-        update_cache: yes
-
-    - name: upgrade apt distro
-      apt:
-        upgrade: full
-
     - name: update apt package cache
       apt:
         update_cache: yes
@@ -234,12 +176,33 @@
         update_cache: yes
         install_recommends: false
 
+    - name: install python packages
+      command: "python -m pip install --upgrade pip setuptools wheel meson h5py --break-system-packages"
+
     - name: create symlinks for libraries
       file:
         src: "/usr/arm-linux-gnueabihf/lib/{{ item }}"
         dest: "/usr/lib/{{ item }}"
         state: link
       with_items: "{{ libraries }}"
+
+    - name: create symlink for /usr/lib/ld-linux-armhf.so.3
+      file:
+        src: "/usr/arm-linux-gnueabihf/lib/ld-linux-armhf.so.3"
+        dest: "/usr/lib/ld-linux-armhf.so.3"
+        state: link
+
+    - name: create symlink for /usr/lib/arm-linux-gnueabihf/libisl.so.10
+      file:
+        src: "/usr/lib/arm-linux-gnueabihf/libisl.so.23.2.0"
+        dest: "/usr/lib/arm-linux-gnueabihf/libisl.so.10"
+        state: link
+
+    - name: create symlink for /usr/lib/arm-linux-gnueabihf/libmpfr.so.4
+      file:
+        src: "/usr/lib/arm-linux-gnueabihf/libmpfr.so.6.2.0"
+        dest: "/usr/lib/arm-linux-gnueabihf/libmpfr.so.4"
+        state: link
 
     ###########################################
     # Set up host
@@ -260,6 +223,11 @@
           export PATH=/usr/local/go/bin:$PATH:$GOPATH/bin
       when: golang.changed
 
+    - name: enable ssh on boot
+      file:
+        path: /boot/firmware/ssh
+        state: touch
+
     - name: remove current rc.local
       file:
         path: /etc/rc.local
@@ -273,6 +241,34 @@
         backup: no
         regexp: '(.*)$'
         line: '\1 modules-load=dwc2,g_ether'
+
+    - name: setup /boot/firmware/config.txt
+      blockinfile:
+        path: /boot/firmware/config.txt
+        insertafter: EOF
+        block: |
+          dtparam=i2c1=on
+          dtparam=i2c_arm=on
+          dtparam=spi=on
+          gpu_mem=1
+          dtoverlay=dwc2
+          #dtoverlay=disable-wifi
+
+          [pi0]
+          dtoverlay=spi0-0cs
+          #dtoverlay=disable-wifi
+
+          [pi3]
+          dtoverlay=spi0-0cs
+          #dtoverlay=disable-wifi
+
+          [pi4]
+          dtoverlay=spi0-0cs
+          #dtoverlay=disable-wifi
+
+          [pi5]
+          dtoverlay=spi0-0cs
+          #dtoverlay=disable-wifi
 
     - name: change hostname
       lineinfile:
@@ -330,87 +326,123 @@
     ###########################################
     # BUILD nexmon DRIVER
     ###########################################
-    - name: download isl source
-      unarchive:
-        src: "{{ packages.libisl.source }}"
-        dest: /usr/local/src/
-        remote_src: yes
-        mode: 0755
+    - name: make Nexmon firmware
+      shell: "source ./setup_env.sh && make"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/nexmon/
+      environment:
+        QEMU_UNAME: "{{ kernel.full_pi5 }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: install isl from source
-    #   shell: "./configure --enable-static=yes --enable-shared=no --build=armv7l && make && make install"
-    #   args:
-    #     executable: /bin/bash
-    #     chdir: /usr/local/src/isl-0.26
-    #   environment:
-    #     ARCHFLAGS: "-arch armv7l"
+    - name: make firmware patch (bcm43455c0), RPi5
+      shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43455c0/7_45_206/nexmon/ && make"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/nexmon/
+      environment:
+        QEMU_UNAME: "{{ kernel.full_pi5 }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: create symlink for /usr/lib/libisl.so.10
-    #   file:
-    #     src: "/usr/local/lib/libisl.so"
-    #     dest: "/usr/lib/libisl.so.10"
-    #     state: link
+    - name: copy modified driver, RPi5
+      copy:
+        src: "/usr/local/src/nexmon/patches/driver/brcmfmac_{{ kernel.min }}.y-nexmon/brcmfmac.ko"
+        dest: "/usr/lib/modules/{{ kernel.full_pi5 }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko"
+      environment:
+        QEMU_UNAME: "{{ kernel.full_pi5 }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: "make firmware patch (PiZero2W)"
-    #   shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/ && make"
-    #   args:
-    #     executable: /bin/bash
-    #     chdir: /usr/local/src/nexmon/
-    #   environment:
-    #     QEMU_UNAME: "{{ kernel.full_2w }}"
+    - name: backup original driver, RPi5
+      command: "mv /usr/lib/modules/{{ kernel.full_pi5 }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz /usr/lib/modules/{{ kernel.full_pi5 }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz.orig"
 
-    # - name: "install new firmware (PiZero2W)"
-    #   copy:
-    #     src: "/usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/brcmfmac43436-sdio.bin"
-    #     dest: "/usr/lib/firmware/brcm/brcmfmac43436-sdio.bin"
-    #     follow: true
-    #   environment:
-    #     QEMU_UNAME: "{{ kernel.full_2w }}"
+    - name: load brcmfmac drivers
+      command: "/sbin/depmod {{ kernel.full_pi5 }}"
+      environment:
+        QEMU_UNAME: "{{ kernel.full_pi5 }}"
 
-    # - name: backup original driver
-    #   command: "mv /usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz /usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz.orig"
+    - name: make firmware patch (bcm43455c0), RPi4
+      shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43455c0/7_45_206/nexmon/ && make"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/nexmon/
+      environment:
+        QEMU_UNAME: "{{ kernel.full }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: copy modified driver
-    #   copy:
-    #     src: "/usr/local/src/nexmon/patches/driver/brcmfmac_6.1.y-nexmon/brcmfmac.ko"
-    #     dest: "/usr/lib/modules/{{ kernel.full_2w }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko"
+    - name: install new firmware (bcm43455c0), RPi4 RPi5
+      copy:
+        src: /usr/local/src/nexmon/patches/bcm43455c0/7_45_206/nexmon/brcmfmac43455-sdio.bin
+        dest: /usr/lib/firmware/brcm/brcmfmac43455-sdio.bin
+        follow: true
 
-    # - name : load brcmfmac drivers
-    #   command: "/sbin/depmod -a {{ kernel.full_2w }}"
+    - name: make firmware patch (bcm43436b0), PiZero2W
+      shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/ && make"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/nexmon/
+      environment:
+        QEMU_UNAME: "{{ kernel.full }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: copy 43430-sdio as 43436s-sdio for the special 43430/1 /2
-    #   copy:
-    #     src: /usr/lib/firmware/brcm/brcmfmac43430-sdio.bin
-    #     dest: /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin
-    #     follow: true
+    - name: install new firmware (PiZero2W)
+      copy:
+        src: /usr/local/src/nexmon/patches/bcm43436b0/9_88_4_65/nexmon/brcmfmac43436-sdio.bin
+        dest: /usr/lib/firmware/brcm/brcmfmac43436-sdio.bin
+        follow: true
 
-    # # delete blob files that make nexmon sad
-    # - name: Delete the firmware blob files to avoid some nexmon crashing
-    #   file:
-    #     state: absent
-    #     path: '{{ item }}'
-    #   loop:
-    #     - /usr/lib/firmware/brcm/brcmfmac43430-sdio.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43430-sdio.raspberrypi,model-zero-w.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43430-sdio.raspberrypi,3-model-b.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43430b0-sdio.raspberrypi,model-zero-2-w.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43436-sdio.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43436-sdio.raspberrypi,model-zero-2-w.clm_blob
-    #     - /usr/lib/firmware/brcm/brcmfmac43455-sdio.clm_blob
+    - name: make firmware patch (bcm43430a1), RPi3
+      shell: "source ./setup_env.sh && cd /usr/local/src/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/ && make"
+      args:
+        executable: /bin/bash
+        chdir: /usr/local/src/nexmon/
+      environment:
+        QEMU_UNAME: "{{ kernel.full }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: backup original driver
-    #   command: "mv /usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz /usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz.orig"
+    - name: copy modified driver, RPi3
+      copy:
+        src: "/usr/local/src/nexmon/patches/driver/brcmfmac_{{ kernel.min }}.y-nexmon/brcmfmac.ko"
+        dest: "/usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko"
+      environment:
+        QEMU_UNAME: "{{ kernel.full }}"
+        ARCHFLAGS: "-arch aarch64"
 
-    # - name: load brcmfmac drivers
-    #   command: "/sbin/depmod {{ kernel.full }}"
-    #   environment:
-    #     QEMU_UNAME: "{{ kernel.full }}"
+    - name: install new firmware (bcm43430a1), RPi3
+      copy:
+        src: /usr/local/src/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac43430-sdio.bin
+        dest: /usr/lib/firmware/brcm/brcmfmac43430-sdio.bin
+        follow: true
 
-    # ## To shrink the final image, remove the nexmon directory (takes 2.5G of space) post build and installation
-    # - name: Delete nexmon content & directory
-    #   file:
-    #     state: absent
-    #     path: /usr/local/src/nexmon/
+    - name: copy 43430-sdio as 43436s-sdio for the special 43430/1 /2
+      command: "cp /usr/local/src/nexmon/patches/bcm43430a1/7_45_41_46/nexmon/brcmfmac43430-sdio.bin /usr/lib/firmware/brcm/brcmfmac43436s-sdio.bin"
+
+    # delete blob files that make nexmon sad
+    - name: Delete the firmware blob files to avoid some nexmon crashing
+      file:
+        state: absent
+        path: '{{ item }}'
+      loop:
+        - /usr/lib/firmware/brcm/brcmfmac43430-sdio.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43430-sdio.raspberrypi,model-zero-w.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43430-sdio.raspberrypi,3-model-b.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43430b0-sdio.raspberrypi,model-zero-2-w.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43436-sdio.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43436-sdio.raspberrypi,model-zero-2-w.clm_blob
+        - /usr/lib/firmware/brcm/brcmfmac43455-sdio.clm_blob
+
+    - name: backup original driver
+      command: "mv /usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz /usr/lib/modules/{{ kernel.full }}/kernel/drivers/net/wireless/broadcom/brcm80211/brcmfmac/brcmfmac.ko.xz.orig"
+
+    - name: load brcmfmac drivers
+      command: "/sbin/depmod {{ kernel.full }}"
+      environment:
+        QEMU_UNAME: "{{ kernel.full }}"
+
+    ## To shrink the final image, remove the nexmon directory (takes 2.5G of space) post build and installation
+    - name: Delete nexmon content & directory
+      file:
+        state: absent
+        path: /usr/local/src/nexmon/
 
     - name: Create custom plugin directory
       file:
@@ -427,37 +459,6 @@
     ###########################################
     # Clone external repositories
     ###########################################
-    - name: clone papirus repository
-      git:
-        repo: https://github.com/repaper/gratis.git
-        dest: /usr/local/src/gratis
-        depth: 1
-      register: gratisgit
-
-    - name: build papirus service
-      make:
-        chdir: /usr/local/src/gratis
-        target: rpi
-        params:
-          EPD_IO: epd_io_free_uart.h
-          PANEL_VERSION: 'V231_G2'
-      when: gratisgit.changed
-
-    - name: install papirus service
-      make:
-        chdir: /usr/local/src/gratis
-        target: rpi-install
-        params:
-          EPD_IO: epd_io_free_uart.h
-          PANEL_VERSION: 'V231_G2'
-      when: gratisgit.changed
-
-    - name: configure papirus display size
-      lineinfile:
-        dest: /etc/default/epd-fuse
-        regexp: "#EPD_SIZE=2.0"
-        line: "EPD_SIZE=2.0"
-
     - name: collect python pip package list
       command: "pip3 list"
       register: pip_output
@@ -670,6 +671,12 @@
       apt:
         autoremove: yes
 
+    - name: add firmware packages to hold
+      dpkg_selections:
+        name: "{{ item }}"
+        selection: hold
+      with_items: "{{ packages.apt.hold }}"
+
     - name: disable unnecessary services
       systemd:
         name: "{{ item }}"
@@ -684,6 +691,11 @@
         state: stopped
       with_items: "{{ services.enable }}"
       register: enabled
+
+    - name: make /root readable, becauase that's where all the files are
+      file:
+        path: /root
+        mode: '755'
 
     - name: fix permissions on /home/pi
       file:
@@ -743,7 +755,7 @@
       when: removed.changed
 
   handlers:
-  - name: reload systemd services
-    systemd:
-      daemon_reload: yes
-    when: enabled.changed
+    - name: reload systemd services
+      systemd:
+        daemon_reload: yes
+      when: enabled.changed

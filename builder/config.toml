@@ -62,7 +62,7 @@ main.plugins.grid.report = false
 main.plugins.grid.exclude = []
 
 main.plugins.led.delay = 200
-main.plugins.led.enabled = true
+main.plugins.led.enabled = false
 main.plugins.led.led = 0
 
 main.plugins.led.patterns.ai_best_reward = "oo  oo  oo oo  oo  oo  oo"
