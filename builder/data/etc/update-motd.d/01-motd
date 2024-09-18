@@ -22,6 +22,7 @@ echo "    If you want to know what I'm doing, you can check my logs with the com
 echo "    - pwnlog"
 echo "    - sudo pwnagotchi --wizard, to help set up a config.toml"
 echo "    - sudo pwnagotchi --version, to check the current version"
+echo "    - sudo pwnagotchi --donate, to see how you can donate to this project"
 echo "    - sudo pwnagotchi --check-update, to see if there is a new version available"
 echo
 echo "    If you want to know if I'm running, you can use"
