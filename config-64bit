@@ -1,5 +1,8 @@
 IMG_NAME="pwnagotchi-64bit"
-WORK_DIR="/home/jayofelony/work-64bit"
-DEPLOY_DIR="/home/jayofelony/images"
 DEPLOY_COMPRESSION="xz"
-STAGE_LIST="pi-gen-64bit/stage0 pi-gen-64bit/stage1 pi-gen-64bit/stage2 stage3"
+USE_QEMU=1
+LOCALE_DEFAULT="en_NZ.UTF-8"
+TARGET_HOSTNAME="pandagotchi"
+TIMEZONE_DEFAULT="Pacific/Auckland"
+ENABLE_SSH=1
+STAGE_LIST="stage0 stage1 stage2 stagex"

@@ -4,10 +4,11 @@
 # WORK_DIR can use up to 20GB of storage space
 # refer to https://github.com/RPi-Distro/pi-gen/blob/master/README.md
 # sudo apt-get install -y make git quilt qemu-user-static debootstrap zerofree libarchive-tools curl pigz arch-test qemu-utils qemu-system-arm qemu-user
-# gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf
+# gcc-aarch64-linux-gnu gcc-arm-linux-gnueabihf binfmt-support
 
 BUILD_USER ?= $(shell whoami)
-BUILD_HOME ?= $(shell eval echo ~$(BUILD_USER))
+# BUILD_HOME ?= $(shell eval echo ~$(BUILD_USER))
+BUILD_HOME ?= pi-gen-64bit
 IMAGE_DIR ?= $(BUILD_HOME)/images
 
 # clone pi-gen into pi-gen-32bit folder
@@ -26,9 +27,12 @@ IMAGE_DIR ?= $(BUILD_HOME)/images
 	[ -d pi-gen-64bit ] || git clone --branch arm64 "https://github.com/RPI-Distro/pi-gen.git" pi-gen-64bit
 	[ -d pi-gen-64bit ] && cd pi-gen-64bit && git pull
 	rm -rf pi-gen-64bit/stage2/EXPORT_IMAGE
+	/bin/cp -f patch/* pi-gen-64bit/
+	mkdir -p pi-gen-64bit/stagex && cp -R stagex/* pi-gen-64bit/stagex
 	sed -i "s|WORK_DIR=.*|WORK_DIR=\"$(BUILD_HOME)/work-64bit\"|" config-64bit
 	sed -i "s|DEPLOY_DIR=.*|DEPLOY_DIR=\"$(IMAGE_DIR)\"|" config-64bit
-	sudo ./pi-gen-64bit/build.sh -c config-64bit
+# 	sudo ./pi-gen-64bit/build.sh -c config-64bit
+	sudo ./pi-gen-64bit/build-docker.sh -c config-64bit
 	mkdir -p $(IMAGE_DIR)
 	sudo chown $(BUILD_USER):$(BUILD_USER) -R $(IMAGE_DIR)
 

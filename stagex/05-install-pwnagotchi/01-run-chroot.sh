@@ -12,7 +12,7 @@ cd /opt
 rm -r lg.zip lg/
 
 if [ ! -d pwnagotchi ]; then
-    git clone https://github.com/jayofelony/pwnagotchi.git
+    git clone https://github.com/emonkey/pwnagotchi.git
     cd pwnagotchi/
 else
     cd /opt/pwnagotchi/

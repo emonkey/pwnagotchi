@@ -4,7 +4,7 @@ lang = "en"
 iface = "wlan0mon"
 mon_start_cmd = "/usr/bin/monstart"
 mon_stop_cmd = "/usr/bin/monstop"
-mon_max_blind_epochs = 5
+mon_max_blind_epochs = 50
 no_restart = false
 whitelist = [
     "EXAMPLE_NETWORK",
@@ -14,6 +14,7 @@ whitelist = [
 ]
 confd = "/etc/pwnagotchi/conf.d/"
 custom_plugin_repos = [
+    "https://github.com/evilsocket/pwnagotchi-plugins-contrib/archive/master.zip",
     "https://github.com/jayofelony/pwnagotchi-torch-plugins/archive/master.zip",
     "https://github.com/Sniffleupagus/pwnagotchi_plugins/archive/master.zip",
     "https://github.com/NeonLightning/pwny/archive/master.zip",
@@ -22,6 +23,15 @@ custom_plugin_repos = [
     "https://github.com/cyberartemio/wardriver-pwnagotchi-plugin/archive/main.zip"
 ]
 custom_plugins = "/usr/local/share/pwnagotchi/custom-plugins/"
+
+[main.log]
+debug = false
+path = "/etc/pwnagotchi/log/pwnagotchi.log"
+path-debug = "/etc/pwnagotchi/log/pwnagotchi-debug.log"
+
+[main.log.rotation]
+enabled = true
+size = "10M"
 
 [main.plugins.auto-tune]
 enabled = true
@@ -66,6 +76,33 @@ enabled = false
 enabled = true
 report = true
 
+[main.plugins.led]
+enabled = true
+led = 0
+delay = 200
+patterns.ai_best_reward = "oo  oo  oo oo  oo  oo  oo"
+patterns.ai_ready = "oo  oo  oo oo  oo  oo  oo"
+patterns.ai_training_start = "oo  oo  oo oo  oo  oo  oo"
+patterns.ai_worst_reward = "oo  oo  oo oo  oo  oo  oo"
+patterns.association = "oo  oo  oo oo  oo  oo  oo"
+patterns.bored = "oo  oo  oo oo  oo  oo  oo"
+patterns.deauthentication = "oo  oo  oo oo  oo  oo  oo"
+patterns.epoch = "oo  oo  oo oo  oo  oo  oo"
+patterns.excited = "oo  oo  oo oo  oo  oo  oo"
+patterns.handshake = "oo  oo  oo oo  oo  oo  oo"
+patterns.loaded = "oo  oo  oo oo  oo  oo  oo"
+patterns.lonely = "oo  oo  oo oo  oo  oo  oo"
+patterns.peer_detected = "oo  oo  oo oo  oo  oo  oo"
+patterns.peer_lost = "oo  oo  oo oo  oo  oo  oo"
+patterns.ready = "oo  oo  oo oo  oo  oo  oo"
+patterns.rebooting = "oo  oo  oo oo  oo  oo  oo"
+patterns.sad = "oo  oo  oo oo  oo  oo  oo"
+patterns.sleep = "oo  oo  oo oo  oo  oo  oo"
+patterns.unread_inbox = "oo  oo  oo oo  oo  oo  oo"
+patterns.updating = "oo  oo  oo oo  oo  oo  oo"
+patterns.wait = "oo  oo  oo oo  oo  oo  oo"
+patterns.wifi_update = "oo  oo  oo oo  oo  oo  oo"
+
 [main.plugins.logtail]
 enabled = false
 max-lines = 10000
@@ -79,6 +116,13 @@ orientation = "horizontal"
 enabled = false
 api_key = "sk_your_api_key_here"
 receive_email = "yes"
+
+[main.plugins.onlinehashcrack]
+enabled = false
+email = ""
+dashboard = ""
+single_files = false
+whitelist = []
 
 [main.plugins.pwndroid]
 enabled = false
@@ -99,13 +143,13 @@ enabled = false
 key = ""
 
 [main.plugins.session-stats]
-enabled = false
+enabled = true
 save_directory = "/etc/pwnagotchi/sessions/"
 
 [main.plugins.ups_hat_c]
 enabled = false
-label_on = true  # show BAT label or just percentage
-shutdown = 5  # battery percent at which the device will turn off
+label_on = true     # show BAT label or just percentage
+shutdown = 5        # battery percent at which the device will turn off
 bat_x_coord = 140
 bat_y_coord = 0
 
@@ -124,11 +168,11 @@ enabled = false
 
 [main.plugins.wigle]
 enabled = false
-api_key = "" # mandatory
-cvs_dir = "/tmp" # optionnal, is set, the CVS is written to this directory
-donate = false # default: off
-timeout = 30 # default: 30
-position = [7, 85] # optionnal
+api_key = ""            # mandatory
+cvs_dir = "/tmp"        # optionnal, is set, the CVS is written to this directory
+donate = false          # default: off
+timeout = 30            # default: 30
+position = [7, 85]      # optionnal
 
 [main.plugins.wpa-sec]
 enabled = false
@@ -138,32 +182,43 @@ download_results = false
 show_pwd = false
 single_files = false
 
-[main.log]
-path = "/etc/pwnagotchi/log/pwnagotchi.log"
-path-debug = "/etc/pwnagotchi/log/pwnagotchi-debug.log"
-
-[main.log.rotation]
+[ai]
 enabled = true
-size = "10M"
+path = "/root/brain.nn"
+laziness = 0.1
+epochs_per_episode = 50
+
+params.gamma = 0.99
+params.n_steps = 1
+params.vf_coef = 0.25
+params.ent_coef = 0.01
+params.max_grad_norm = 0.5
+params.learning_rate = 0.001
+params.alpha = 0.99
+params.epsilon = 0.00001
+params.verbose = 1
+params.lr_schedule = "constant"
 
 [personality]
-advertise = true
-deauth = true
-associate = true
-channels = []
-min_rssi = -200
-ap_ttl = 120
-sta_ttl = 300
-recon_time = 30
-max_inactive_scale = 2
-recon_inactive_multiplier = 2
-hop_recon_time = 10
-min_recon_time = 5
-max_interactions = 3
-max_misses_for_recon = 5
-excited_num_epochs = 10
-bored_num_epochs = 15
-sad_num_epochs = 25
+advertise = true                # advertise our presence
+deauth = true                   # perform a deauthentication attack to client stations in order to get full or half handshakes
+associate = true                # send association frames to APs in order to get the PMKID
+channels = []                   # list of channels to recon on, or empty for all channels
+min_rssi = -200                 # minimum WiFi signal strength in dBm
+ap_ttl = 120                    # number of seconds for wifi.ap.ttl
+sta_ttl = 300                   # number of seconds for wifi.sta.ttl
+recon_time = 30                 # time in seconds to wait during channel recon
+max_inactive_scale = 2          # number of inactive epochs after which recon_time gets multiplied by recon_inactive_multiplier
+recon_inactive_multiplier = 2   # if more than max_inactive_scale epochs are inactive, recon_time *= recon_inactive_multiplier
+hop_recon_time = 10             # time in seconds to wait during channel hopping if activity has been performed
+min_recon_time = 5              # time in seconds to wait during channel hopping if no activity has been performed
+max_interactions = 3            # maximum amount of deauths/associations per BSSID per session
+max_misses_for_recon = 5        # maximum amount of misses before considering the data stale and triggering a new recon
+excited_num_epochs = 10         # number of active epochs that triggers the excited state
+bored_num_epochs = 15           # number of inactive epochs that triggers the bored state
+sad_num_epochs = 25             # number of inactive epochs that triggers the sad state
+clear_on_exit = true            # clear display when shutting down cleanly
+
 bond_encounters_factor = 20000
 throttle_a = 0.4
 throttle_d = 0.9
@@ -175,7 +230,7 @@ fps = 0.0
 
 [ui.font]
 name = "DejaVuSansMono" # for japanese: fonts-japanese-gothic
-size_offset = 0 # will be added to the font size
+size_offset = 0         # will be added to the font size
 
 [ui.faces]
 look_r = ["( ⚆_⚆)"]
@@ -224,8 +279,14 @@ accent_b = 80
 enabled = false
 rotation = 180
 type = "waveshare_4"
+color = "black"
 
 [bettercap]
+scheme = "http"
+hostname = "localhost"
+port = 8081
+username = "pwnagotchi"
+password = "pwnagotchi"
 handshakes = "/etc/pwnagotchi/handshakes"
 silence = [
     "ble.device.new",
@@ -248,11 +309,11 @@ enabled = true
 
 [fs.memory.mounts.log]
 enabled = true
-mount = "/etc/pwnagotchi/log/"
-size = "50M"
-sync = 60
-zram = true
-rsync = true
+mount = "/etc/pwnagotchi/log/"  # which directory to map into memory
+size = "50M"                    # max size to put into memory
+sync = 60                       # interval in seconds to sync back onto disk
+zram = true                     # use zram for compression (recommended)
+rsync = true                    # use rsync to copy only the difference (recommended)
 
 [fs.memory.mounts.data]
 enabled = true
