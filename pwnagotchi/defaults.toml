@@ -65,12 +65,12 @@ enabled = true
 enabled = false
 
 [main.plugins.gps]
-enabled = false
+enabled = true
 speed = 19200
 device = "/dev/ttyUSB0" # for GPSD: "localhost:2947"
 
 [main.plugins.gps_listener]
-enabled = false
+enabled = true
 
 [main.plugins.grid]
 enabled = true
@@ -108,7 +108,7 @@ enabled = false
 max-lines = 10000
 
 [main.plugins.memtemp]
-enabled = false
+enabled = true
 scale = "celsius"
 orientation = "horizontal"
 
@@ -276,7 +276,7 @@ accent_g = 175
 accent_b = 80
 
 [ui.display]
-enabled = false
+enabled = true
 rotation = 180
 type = "waveshare_4"
 color = "black"

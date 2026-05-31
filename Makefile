@@ -25,10 +25,10 @@ IMAGE_DIR ?= $(BUILD_HOME)/images
 # clone pi-gen arm64 branch into pi-gen-64bit folder
 64bit:
 	[ -d pi-gen-64bit ] || git clone --branch arm64 "https://github.com/RPI-Distro/pi-gen.git" pi-gen-64bit
-	[ -d pi-gen-64bit ] && cd pi-gen-64bit && git pull
-	rm -rf pi-gen-64bit/stage2/EXPORT_IMAGE
 	/bin/cp -f patch/* pi-gen-64bit/
 	mkdir -p pi-gen-64bit/stagex && cp -R stagex/* pi-gen-64bit/stagex
+	[ -d pi-gen-64bit ] && cd pi-gen-64bit && git pull --autostash
+	rm -rf pi-gen-64bit/stage2/EXPORT_IMAGE
 	sed -i "s|WORK_DIR=.*|WORK_DIR=\"$(BUILD_HOME)/work-64bit\"|" config-64bit
 	sed -i "s|DEPLOY_DIR=.*|DEPLOY_DIR=\"$(IMAGE_DIR)\"|" config-64bit
 # 	sudo ./pi-gen-64bit/build.sh -c config-64bit

@@ -1,6 +1,5 @@
 IMG_NAME="pwnagotchi-64bit"
 DEPLOY_COMPRESSION="xz"
-USE_QEMU=1
 LOCALE_DEFAULT="en_NZ.UTF-8"
 TARGET_HOSTNAME="pandagotchi"
 TIMEZONE_DEFAULT="Pacific/Auckland"
